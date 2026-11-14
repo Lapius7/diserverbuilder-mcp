@@ -1,0 +1,31 @@
+{
+  "name": "diserverbuilder-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets AI assistants build and reorganize a Discord server's categories, channels, roles, and permissions through a bot.",
+  "keywords": ["mcp", "model-context-protocol", "discord", "discord-bot", "server-management", "claude"],
+  "license": "MIT",
+  "author": "Lapius",
+  "homepage": "https://github.com/Lapius7/diserverbuilder-mcp#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/Lapius7/diserverbuilder-mcp.git" },
+  "bugs": { "url": "https://github.com/Lapius7/diserverbuilder-mcp/issues" },
+  "type": "module",
+  "bin": { "diserverbuilder-mcp": "dist/index.js" },
+  "files": ["dist", "README.md", "README.ja.md", "LICENSE"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "bun build src/index.ts --outfile dist/index.js --target node --packages external",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "prepublishOnly": "pnpm run typecheck && pnpm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "discord.js": "^14.28.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2"
+  }
+}
