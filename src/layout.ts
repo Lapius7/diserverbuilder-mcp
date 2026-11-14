@@ -129,11 +129,15 @@ export async function exportLayout(g: string): Promise<{ layout: Layout; notes: 
     .map((cat) => ({
       name: cat.name,
       overwrites: specs(cat),
-      channels: chs.filter((c) => c.parent_id === cat.id).sort(byPos).map((c): LayoutChannel => {
+      channels: chs.filter((c) => c.parent_id === cat.id).sort(byPos).filter((c) => {
+        if (KIND_BY_TYPE[c.type]) return true;
+        notes.push(`unsupported channel type not exported: ${c.name} (type ${c.type})`);
+        return false;
+      }).map((c): LayoutChannel => {
         const kind = KIND_BY_TYPE[c.type];
         return {
           name: c.name,
-          ...(kind && kind !== "text" && kind !== "category" ? { type: kind } : {}),
+          ...(kind !== "text" && kind !== "category" ? { type: kind } : {}),
           ...(c.topic ? { topic: c.topic } : {}),
           ...(c.nsfw ? { nsfw: true } : {}),
           overwrites: specs(c),

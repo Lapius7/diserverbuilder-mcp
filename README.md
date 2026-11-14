@@ -82,6 +82,7 @@ Requires Node.js 20 or later.
 - A real `apply_layout` run saves a snapshot first. Call `snapshot` yourself before other large changes.
 - Set `DISERVERBUILDER_READONLY=1` to let an assistant look around without being able to change anything.
 - `send_message` and `edit_message` suppress `@everyone` and other mentions unless you pass `allowMentions: true`.
+- `export_layout` skips uncategorized channels, member overwrites and unsupported channel types. Do not apply an export with `prune: true`, or the skipped channels are deleted.
 - `apply_roles` and `sync_permissions` also default to a dry run. `apply_roles` never deletes roles.
 - `restore_snapshot` only recreates what is missing (matched by name) and never changes or deletes existing items. It is a dry run by default.
 - Discord changes the parent of only one channel per bulk call, so `reorder` cannot move several channels between categories at once. `apply_layout` handles that for you.

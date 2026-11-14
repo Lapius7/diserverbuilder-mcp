@@ -50,7 +50,7 @@ def("restore_snapshot", {
 def("export_layout", {
   description:
     "Export the current categories and channels as JSON in the same shape apply_layout takes (including permission overwrites by role name). " +
-    "Use it to edit a structure and apply it back, or to reuse it on another server. Member overwrites and uncategorized channels are skipped.",
+    "Use it to edit a structure and apply it back, or to reuse it on another server. Member overwrites, uncategorized channels and unsupported channel types are skipped, so do not apply an export with prune=true: it would delete those.",
   inputSchema: { guildId },
   annotations: READ,
 }, async (a) => {
