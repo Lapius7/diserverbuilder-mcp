@@ -1,3 +1,4 @@
+import { DiscordAPIError } from "discord.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import pkg from "../package.json" with { type: "json" };
@@ -23,7 +24,44 @@ export const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, openWor
 export const LOCAL = { readOnlyHint: false, destructiveHint: false, idempotentHint: false } as const;
 
 const ok = (text: string) => ({ content: [{ type: "text" as const, text }] });
-const fail = (e: unknown) => ({ isError: true, content: [{ type: "text" as const, text: e instanceof Error ? e.message : String(e) }] });
+/** Flatten Discord's nested validation errors into "path: message" lines. */
+function fieldErrors(node: unknown, path = ""): string[] {
+  if (!node || typeof node !== "object") return [];
+  const n = node as Record<string, unknown>;
+  if (Array.isArray(n._errors)) {
+    const msgs = (n._errors as { message?: string }[]).map((x) => x.message).filter(Boolean);
+    if (msgs.length) return [`${path || "(body)"}: ${msgs.join("; ")}`];
+  }
+  return Object.entries(n).flatMap(([k, v]) => (k === "_errors" ? [] : fieldErrors(v, path ? `${path}.${k}` : k)));
+}
+
+/** Turn an error into a short message that says what went wrong and what to do about it. */
+export function explain(e: unknown): string {
+  if (e instanceof DiscordAPIError) {
+    const where = `${e.method} ${new URL(e.url).pathname.replace(/^\/api\/v\d+/, "")}`;
+    const hint: string =
+      e.status === 401 ? "The bot token is invalid or was reset. Check DISCORD_BOT_TOKEN (Developer Portal, Bot, Reset Token)."
+      : e.code === 50001 ? "The bot cannot see this. Check that it was invited to the server and can view the channel."
+      : e.code === 50013 || e.status === 403
+        ? "The bot lacks a permission for this. Grant it, and move the bot's role above any role it edits (Discord does not let a bot edit roles above its own)."
+      : e.code === 50035 ? "Discord rejected a value:\n" + (fieldErrors((e.rawError as { errors?: unknown }).errors).map((l) => `  ${l}`).join("\n") || `  ${e.message}`)
+      : [10003, 10004, 10008, 10011, 10013, 10014, 10015, 10026, 10062].includes(e.code as number) || e.status === 404
+        ? "Not found. Check the ID (use get_structure, list_roles or list_guilds to look it up) and that it belongs to this server."
+      : e.status === 429 ? "Rate limited by Discord. Wait a moment and try again."
+      : e.status >= 500 ? "Discord had a problem on its side. Try again shortly."
+      : e.message;
+    return `Discord API error (${e.status}${e.code ? `, code ${e.code}` : ""}) on ${where}\n${hint}`;
+  }
+  if (e instanceof Error) {
+    const code = (e as { code?: string }).code;
+    if (code === "ConnectionRefused" || code === "ENOTFOUND" || code === "ECONNRESET" || code === "ETIMEDOUT" || /Unable to connect|fetch failed/.test(e.message))
+      return "Could not reach Discord. Check the network connection and try again.";
+    return e.message;
+  }
+  return String(e);
+}
+
+const fail = (e: unknown) => ({ isError: true, content: [{ type: "text" as const, text: explain(e) }] });
 
 interface Config<S extends z.ZodRawShape> {
   description: string;
