@@ -2,13 +2,14 @@ import { REST, Routes, ChannelType, PermissionFlagsBits, PermissionsBitField } f
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
+import { resolveToken } from "./config.ts";
 
 let _rest: REST | null = null;
 export function rest(): REST {
   if (_rest) return _rest;
-  const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token) throw new Error("DISCORD_BOT_TOKEN is not set. Pass it through the MCP server's env.");
-  return (_rest = new REST({ version: "10" }).setToken(token));
+  const t = resolveToken();
+  if (!t) throw new Error("No bot token. Run `npx diserverbuilder-mcp auth` in a terminal, or set DISCORD_BOT_TOKEN in the MCP server's env.");
+  return (_rest = new REST({ version: "10" }).setToken(t.token));
 }
 
 export function guildOf(id?: string): string {

@@ -47,7 +47,7 @@ Move the bot's role above any role it should manage. Discord does not let a bot 
 Claude Code:
 
 ```sh
-claude mcp add diserverbuilder -e DISCORD_BOT_TOKEN=your-token -- npx -y diserverbuilder-mcp
+claude mcp add -s user diserverbuilder -- npx -y diserverbuilder-mcp
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -57,21 +57,43 @@ Claude Desktop (`claude_desktop_config.json`):
   "mcpServers": {
     "diserverbuilder": {
       "command": "npx",
-      "args": ["-y", "diserverbuilder-mcp"],
-      "env": { "DISCORD_BOT_TOKEN": "your-token" }
+      "args": ["-y", "diserverbuilder-mcp"]
     }
   }
 }
 ```
 
+### 3. Save the bot token
+
+```sh
+npx diserverbuilder-mcp auth
+```
+
+It asks for the token (the input is hidden), checks it with Discord, and saves it to `~/.diserverbuilder/config.json`, readable only by you. The token never appears in your shell history, your MCP config or a chat. Run it again whenever you reset the token. `auth status` shows which token is in use, and `auth logout` deletes the saved one.
+
+You can also set the `DISCORD_BOT_TOKEN` environment variable instead (for example in the `env` of the MCP entry). It takes priority over the saved token.
+
 Requires Node.js 20 or later.
+
+## Troubleshooting
+
+| Message | Cause and fix |
+|---------|---------------|
+| `The bot token is invalid or was reset` (401) | The token is wrong or was reset. Copy a fresh one from the Developer Portal (Bot, Reset Token) and run `npx diserverbuilder-mcp auth`. If you set `DISCORD_BOT_TOKEN`, it overrides the saved token, so fix or remove it. |
+| `The bot lacks a permission` (403) | Re-invite the bot with the permissions above, and move its role above any role it edits. |
+| `The bot cannot see this` (50001) | The bot is not in that server, or cannot view the channel. |
+| `Not found` (404) | The ID is wrong or belongs to another server. Look it up with `list_guilds`, `get_structure` or `list_roles`. |
+| `No bot token` | Run `npx diserverbuilder-mcp auth`, or set `DISCORD_BOT_TOKEN` in the `env` of the MCP entry. |
+
+If a token ever ends up in a chat, a log or a repository, reset it in the Developer Portal right away.
 
 ## Environment variables
 
 | Name | Required | Description |
 |------|----------|-------------|
-| `DISCORD_BOT_TOKEN` | Yes | Bot token |
+| `DISCORD_BOT_TOKEN` | No | Bot token. Takes priority over the one saved by `auth`. Set one or the other |
 | `DISCORD_GUILD_ID` | No | Default server ID. If unset, pass `guildId` to each tool |
+| `DISERVERBUILDER_CONFIG_DIR` | No | Where `auth` saves the token. Default `~/.diserverbuilder` |
 | `DISERVERBUILDER_SNAPSHOT_DIR` | No | Where snapshots are saved. Default `~/.diserverbuilder/snapshots` |
 | `DISERVERBUILDER_READONLY` | No | Set to `1` to register only tools that cannot change Discord (inspect and export, no edits) |
 
@@ -87,7 +109,7 @@ Requires Node.js 20 or later.
 - `restore_snapshot` only recreates what is missing (matched by name) and never changes or deletes existing items. It is a dry run by default.
 - Discord changes the parent of only one channel per bulk call, so `reorder` cannot move several channels between categories at once. `apply_layout` handles that for you.
 - `delete_channel` and `delete_role` need the exact current name and `delete_channel` checks that the channel belongs to the given server. Deleted channels and their messages cannot be restored. Snapshots record structure and permissions only, not messages.
-- The token has full channel and role management rights on the server. Keep it out of repositories and shared configs.
+- The token has full channel and role management rights on the server. Keep it out of repositories and shared configs. `auth` stores it in a file only you can read.
 
 ## Development
 

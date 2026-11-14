@@ -47,7 +47,7 @@ Bot のロールは操作したいロールより上に置いてください。D
 Claude Code:
 
 ```sh
-claude mcp add diserverbuilder -e DISCORD_BOT_TOKEN=your-token -- npx -y diserverbuilder-mcp
+claude mcp add -s user diserverbuilder -- npx -y diserverbuilder-mcp
 ```
 
 Claude Desktop（`claude_desktop_config.json`）:
@@ -57,21 +57,43 @@ Claude Desktop（`claude_desktop_config.json`）:
   "mcpServers": {
     "diserverbuilder": {
       "command": "npx",
-      "args": ["-y", "diserverbuilder-mcp"],
-      "env": { "DISCORD_BOT_TOKEN": "your-token" }
+      "args": ["-y", "diserverbuilder-mcp"]
     }
   }
 }
 ```
 
+### 3. Bot のトークンを保存する
+
+```sh
+npx diserverbuilder-mcp auth
+```
+
+トークンを入力すると（画面には表示されません）、Discord で有効か確かめてから、自分だけが読める `~/.diserverbuilder/config.json` に保存します。トークンはシェルの履歴にも、MCP の設定にも、チャットにも残りません。トークンを再発行したときは、もう一度実行してください。`auth status` で使われるトークンの出どころを確認でき、`auth logout` で保存したトークンを削除できます。
+
+環境変数 `DISCORD_BOT_TOKEN` で渡すこともできます（たとえば MCP の登録の `env`）。保存したトークンより優先されます。
+
 Node.js 20 以上が必要です。
+
+## トラブルシューティング
+
+| メッセージ | 原因と対処 |
+|------------|------------|
+| `The bot token is invalid or was reset`（401） | トークンが間違っているか、リセットされています。Developer Portal（Bot → Reset Token）で新しいトークンを取り直し、`npx diserverbuilder-mcp auth` を実行してください。`DISCORD_BOT_TOKEN` を設定している場合は保存したトークンより優先されるので、そちらを直すか外してください。 |
+| `The bot lacks a permission`（403） | 上の権限で Bot を招待し直し、Bot のロールを操作したいロールより上に置いてください。 |
+| `The bot cannot see this`（50001） | Bot がそのサーバーにいないか、チャンネルを見られません。 |
+| `Not found`（404） | ID が違うか、別のサーバーのものです。`list_guilds`、`get_structure`、`list_roles` で調べてください。 |
+| `No bot token` | `npx diserverbuilder-mcp auth` を実行するか、MCP の登録の `env` に `DISCORD_BOT_TOKEN` を設定してください。 |
+
+トークンをチャットやログ、リポジトリに載せてしまったら、すぐに Developer Portal で再発行してください。
 
 ## 環境変数
 
 | 名前 | 必須 | 説明 |
 |------|------|------|
-| `DISCORD_BOT_TOKEN` | はい | Bot のトークン |
+| `DISCORD_BOT_TOKEN` | いいえ | Bot のトークン。`auth` で保存したものより優先される。どちらか一方を設定する |
 | `DISCORD_GUILD_ID` | いいえ | 既定のサーバー ID。未設定なら各ツールに `guildId` を渡す |
+| `DISERVERBUILDER_CONFIG_DIR` | いいえ | `auth` がトークンを保存する場所。既定は `~/.diserverbuilder` |
 | `DISERVERBUILDER_SNAPSHOT_DIR` | いいえ | スナップショットの保存先。既定は `~/.diserverbuilder/snapshots` |
 | `DISERVERBUILDER_READONLY` | いいえ | `1` にすると、Discord を変更できないツールだけを登録する（見る・書き出すだけで、編集は不可） |
 
@@ -87,7 +109,7 @@ Node.js 20 以上が必要です。
 - `restore_snapshot` は無いものだけを名前で照合して作り直し、既存のものは変更も削除もしません。既定は dry run です。
 - Discord は一括呼び出しでは 1 件のチャンネルの親しか変えられません。`reorder` では複数のチャンネルをカテゴリ間で一度に動かせないので、その場合は `apply_layout` を使います。
 - `delete_channel` と `delete_role` は現在の名前の完全一致を求めます。`delete_channel` はさらに、指定したサーバーに属することも確かめてから削除します。削除したチャンネルとメッセージは元に戻せません。スナップショットに入るのは構成と権限だけで、メッセージは入りません。
-- トークンはそのサーバーのチャンネルとロールを管理できる権限を持ちます。リポジトリや共有の設定ファイルに入れないでください。
+- トークンはそのサーバーのチャンネルとロールを管理できる権限を持ちます。リポジトリや共有の設定ファイルに入れないでください。`auth` は、自分だけが読めるファイルに保存します。
 
 ## 開発
 

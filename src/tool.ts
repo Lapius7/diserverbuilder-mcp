@@ -40,7 +40,7 @@ export function explain(e: unknown): string {
   if (e instanceof DiscordAPIError) {
     const where = `${e.method} ${new URL(e.url).pathname.replace(/^\/api\/v\d+/, "")}`;
     const hint: string =
-      e.status === 401 ? "The bot token is invalid or was reset. Check DISCORD_BOT_TOKEN (Developer Portal, Bot, Reset Token)."
+      e.status === 401 ? "The bot token is invalid or was reset. Run `npx diserverbuilder-mcp auth` to save a new one (Developer Portal, Bot, Reset Token), or fix DISCORD_BOT_TOKEN if you set it."
       : e.code === 50001 ? "The bot cannot see this. Check that it was invited to the server and can view the channel."
       : e.code === 50013 || e.status === 403
         ? "The bot lacks a permission for this. Grant it, and move the bot's role above any role it edits (Discord does not let a bot edit roles above its own)."
