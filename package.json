@@ -1,6 +1,6 @@
 {
   "name": "diserverbuilder-mcp",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "MCP server that lets AI assistants build and reorganize a Discord server's categories, channels, roles, and permissions through a bot.",
   "keywords": ["mcp", "model-context-protocol", "discord", "discord-bot", "server-management", "claude"],
   "license": "MIT",
@@ -14,7 +14,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "bun build src/index.ts --outfile dist/index.js --target node --packages external",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit", "test": "bun test",
     "start": "node dist/index.js",
     "prepublishOnly": "pnpm run typecheck && pnpm run build"
   },

@@ -5,6 +5,8 @@ import { isAbsolute, join } from "node:path";
 import { resolveToken } from "./config.ts";
 
 let _rest: REST | null = null;
+/** Replace the REST client (tests inject an in-memory fake here). */
+export function setRest(r: unknown) { _rest = r as REST | null; }
 export function rest(): REST {
   if (_rest) return _rest;
   const t = resolveToken();
@@ -24,6 +26,7 @@ export const KIND = {
   announcement: ChannelType.GuildAnnouncement,
   stage: ChannelType.GuildStageVoice,
   forum: ChannelType.GuildForum,
+  media: ChannelType.GuildMedia,
   category: ChannelType.GuildCategory,
 } as const;
 export type Kind = keyof typeof KIND;
@@ -43,6 +46,7 @@ export interface Ch {
   user_limit?: number;
   bitrate?: number;
   available_tags?: { id: string; name: string }[];
+  last_message_id?: string | null;
   permission_overwrites?: Overwrite[];
 }
 export interface Role {
@@ -97,66 +101,115 @@ export function render(chs: Ch[]): string {
 // ---------- Permission overwrites ----------
 
 export interface OverwriteSpec { role: string; allow?: string[]; deny?: string[] }
-export interface Placed { private?: boolean; allowRoles?: string[]; overwrites?: OverwriteSpec[] }
+export interface MemberOverwriteSpec { userId: string; allow?: string[]; deny?: string[] }
+export interface Placed {
+  private?: boolean; allowRoles?: string[]; overwrites?: OverwriteSpec[]; memberOverwrites?: MemberOverwriteSpec[];
+}
 
-/** Build overwrites from `private`, `allowRoles` and explicit per-role specs. "@everyone" means the everyone role. */
+/** Resolve a role reference (ID, name, or "@everyone") to an ID. A name shared by several roles is an error, never a guess. */
+export function resolveRole(g: string, roles: Role[], ref: string): string {
+  if (ref.toLowerCase() === "@everyone") return g;
+  if (/^\d{15,25}$/.test(ref) && (ref === g || roles.some((r) => r.id === ref))) return ref;
+  const hits = roles.filter((r) => r.name.toLowerCase() === ref.toLowerCase());
+  if (hits.length === 1) return hits[0]!.id;
+  if (hits.length > 1) throw new Error(`Role name "${ref}" matches ${hits.length} roles (${hits.map((r) => r.id).join(", ")}). Pass the role ID instead.`);
+  throw new Error(`Role not found: ${ref}`);
+}
+
+/** Build overwrites from `private`, `allowRoles` and explicit per-role / per-member specs. "@everyone" means the everyone role. */
 export function buildOverwrites(g: string, roles: Role[], item: Placed): Overwrite[] | undefined {
-  const slots = new Map<string, { allow: bigint; deny: bigint }>();
-  const slot = (id: string) => {
-    let s = slots.get(id);
-    if (!s) slots.set(id, (s = { allow: 0n, deny: 0n }));
+  const slots = new Map<string, { id: string; type: number; allow: bigint; deny: bigint }>();
+  const slot = (id: string, type: number) => {
+    const key = `${type}:${id}`;
+    let s = slots.get(key);
+    if (!s) slots.set(key, (s = { id, type, allow: 0n, deny: 0n }));
     return s;
-  };
-  const roleId = (name: string) => {
-    if (name.toLowerCase() === "@everyone") return g;
-    const r = roles.find((x) => x.name.toLowerCase() === name.toLowerCase());
-    if (!r) throw new Error(`Role not found: ${name}`);
-    return r.id;
   };
   const view = PermissionFlagsBits.ViewChannel;
   if (item.private) {
-    slot(g).deny |= view;
-    for (const rn of item.allowRoles ?? []) slot(roleId(rn)).allow |= view;
+    slot(g, 0).deny |= view;
+    for (const rn of item.allowRoles ?? []) slot(resolveRole(g, roles, rn), 0).allow |= view;
   }
   for (const o of item.overwrites ?? []) {
-    const s = slot(roleId(o.role));
+    const s = slot(resolveRole(g, roles, o.role), 0);
+    s.allow |= BigInt(permBits(o.allow));
+    s.deny |= BigInt(permBits(o.deny));
+  }
+  for (const o of item.memberOverwrites ?? []) {
+    const s = slot(o.userId, 1);
     s.allow |= BigInt(permBits(o.allow));
     s.deny |= BigInt(permBits(o.deny));
   }
   if (!slots.size) return undefined;
-  return [...slots].map(([id, s]) => ({ id, type: 0, allow: s.allow.toString(), deny: s.deny.toString() }));
+  return [...slots.values()].map((s) => ({ id: s.id, type: s.type, allow: s.allow.toString(), deny: s.deny.toString() }));
 }
 
-// ---------- Snapshots ----------
+export type OverwriteMode = "merge" | "replace";
 
-/** Directory snapshots are written to. Override with DISERVERBUILDER_SNAPSHOT_DIR. */
-export const snapshotDir = () =>
-  process.env.DISERVERBUILDER_SNAPSHOT_DIR || join(homedir(), ".diserverbuilder", "snapshots");
+/**
+ * Work out the overwrites a channel should end up with.
+ * merge: each declared target gets its declared bits added on top of what it has (declared bits win); other overwrites stay.
+ * replace: declared targets are set exactly, role overwrites that were not declared are removed; member overwrites that were not declared stay.
+ * Returns the full new list and human-readable change lines (empty when nothing changes).
+ */
+export function diffOverwrites(
+  current: Overwrite[], desired: Overwrite[], mode: OverwriteMode, nameOf: (o: { id: string; type: number }) => string,
+): { next: Overwrite[]; changes: string[] } {
+  const changes: string[] = [];
+  const key = (o: { id: string; type: number }) => `${o.type}:${o.id}`;
+  const fmt = (allow: bigint, deny: bigint) =>
+    [allow ? `allow [${permNames(allow).join(", ")}]` : "", deny ? `deny [${permNames(deny).join(", ")}]` : ""].filter(Boolean).join(" ") || "(empty)";
+  const cur = new Map(current.map((o) => [key(o), o]));
+  const out = new Map<string, Overwrite>();
+  for (const o of current) out.set(key(o), o);
 
-export interface SnapshotData { guild: string; channels: Ch[]; roles: Role[] }
-
-export async function snapshot(g: string): Promise<string> {
-  const [channels, roles] = await Promise.all([getChannels(g), getRoles(g)]);
-  const dir = snapshotDir();
-  await mkdir(dir, { recursive: true });
-  const file = join(dir, `${g}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-  await writeFile(file, JSON.stringify({ guild: g, channels, roles }, null, 2));
-  return file;
+  for (const d of desired) {
+    const c = cur.get(key(d));
+    const da = BigInt(d.allow), dd = BigInt(d.deny);
+    let allow = da, deny = dd;
+    if (mode === "merge" && c) {
+      allow = (BigInt(c.allow) | da) & ~dd;
+      deny = (BigInt(c.deny) | dd) & ~da;
+    }
+    if (!c) {
+      changes.push(`    + ${nameOf(d)}: ${fmt(allow, deny)}`);
+    } else if (BigInt(c.allow) !== allow || BigInt(c.deny) !== deny) {
+      changes.push(`    ~ ${nameOf(d)}: ${fmt(BigInt(c.allow), BigInt(c.deny))} -> ${fmt(allow, deny)}`);
+    } else continue;
+    out.set(key(d), { id: d.id, type: d.type, allow: allow.toString(), deny: deny.toString() });
+  }
+  if (mode === "replace") {
+    const want = new Set(desired.map(key));
+    for (const o of current) {
+      if (o.type === 0 && !want.has(key(o))) {
+        changes.push(`    - ${nameOf(o)}: ${fmt(BigInt(o.allow), BigInt(o.deny))}`);
+        out.delete(key(o));
+      }
+    }
+  }
+  return { next: [...out.values()], changes };
 }
 
-export async function listSnapshots(): Promise<string[]> {
+// ---------- Members ----------
+
+export interface Member { user: { id: string; username: string; global_name?: string | null; bot?: boolean }; nick?: string | null; roles: string[]; communication_disabled_until?: string | null; joined_at?: string }
+
+/** Every member of the server. Needs the Server Members privileged intent (enable it in the Developer Portal, Bot page). */
+export async function getAllMembers(g: string): Promise<Member[]> {
+  const out: Member[] = [];
+  let after = "0";
   try {
-    return (await readdir(snapshotDir())).filter((f) => f.endsWith(".json")).sort();
-  } catch {
-    return [];
+    for (;;) {
+      const page = (await rest().get(Routes.guildMembers(g), { query: new URLSearchParams({ limit: "1000", after }) })) as Member[];
+      out.push(...page);
+      if (page.length < 1000) break;
+      after = page[page.length - 1]!.user.id;
+    }
+  } catch (e) {
+    if ((e as { status?: number }).status === 403) {
+      throw new Error("Listing members was refused. Turn on the Server Members Intent for the bot (Developer Portal, Bot, Privileged Gateway Intents) and try again.");
+    }
+    throw e;
   }
-}
-
-export async function readSnapshot(file: string): Promise<SnapshotData> {
-  const path = isAbsolute(file) ? file : join(snapshotDir(), file);
-  const data = JSON.parse(await readFile(path, "utf8")) as Partial<SnapshotData>;
-  if (!data.guild || !Array.isArray(data.channels) || !Array.isArray(data.roles)) {
-    throw new Error(`Not a diserverbuilder snapshot: ${path}`);
-  }
-  return data as SnapshotData;
+  return out;
 }
