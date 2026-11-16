@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ChannelType, PermissionFlagsBits as P } from "discord.js";
-import { server } from "../src/tool.ts";
+import { server, withGuildLock } from "../src/tool.ts";
 import { loadTools } from "../src/tools/index.ts";
 import { FakeDiscord, G, ch, role } from "./fake.ts";
 
@@ -87,6 +87,17 @@ describe("templates and analytics through the tools", () => {
     expect(real.error).toBe(false);
     expect((await call("apply_template", { name: "minimal" })).text).toContain("Nothing to change");
     expect((await call("apply_template", { name: "nope" })).error).toBe(true);
+  });
+  test("withGuildLock runs changes to one server one after another, even when one fails", async () => {
+    const log: string[] = [];
+    const job = (n: string, ms: number, fail = false) => withGuildLock("g1", async () => {
+      log.push(`start ${n}`); await new Promise((r) => setTimeout(r, ms)); log.push(`end ${n}`);
+      if (fail) throw new Error("boom");
+    });
+    const other = withGuildLock("g2", async () => { log.push("other"); });
+    await Promise.allSettled([job("a", 20, true), job("b", 5), other]);
+    expect(log.filter((l) => l !== "other")).toEqual(["start a", "end a", "start b", "end b"]);
+    expect(log).toContain("other");
   });
   test("inactive_channels lists never-used channels", async () => {
     fake.channels.push(ch("300000000000000020", "quiet", ChannelType.GuildText));

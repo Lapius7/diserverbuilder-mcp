@@ -45,9 +45,12 @@ describe("built-in templates", () => {
   });
   test("stage channels on a server without Community: dry run warns, real run is refused before any write", async () => {
     const plan = await applyTemplate(G, BUILTIN_TEMPLATES.gaming!, true);
-    expect(plan.join("\n")).toContain("Stage channels need a Community server");
+    expect(plan.join("\n")).toContain("stage channels need a Community server");
     await expect(applyTemplate(G, BUILTIN_TEMPLATES.gaming!, false)).rejects.toThrow("enable_community");
     expect(fake.mutating()).toEqual([]);
+  });
+  test("forum channels do not need Community (checked on a live server)", async () => {
+    expect((await applyTemplate(G, BUILTIN_TEMPLATES.support!, true)).join("\n")).not.toContain("need a Community server");
   });
   test("private categories deny @everyone and allow the named roles by their real IDs", async () => {
     await applyTemplate(G, BUILTIN_TEMPLATES.minimal!, false);

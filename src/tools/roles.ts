@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getRoles, guildOf, permBits, permNames, rest, type Role } from "../discord.ts";
 import { applyRoles, roleBody } from "../roles.ts";
 import { snapshot } from "../snapshot.ts";
-import { DESTRUCTIVE, EDIT, READ, WRITE, def, guildId } from "../tool.ts";
+import { DESTRUCTIVE, EDIT, READ, WRITE, def, guildId, withGuildLock } from "../tool.ts";
 
 const roleFields = {
   color: z.number().int().optional().describe("Color as a 0xRRGGBB number"),
@@ -73,7 +73,7 @@ def("apply_roles", {
 }, async (a) => {
   const g = guildOf(a.guildId);
   const head = a.dryRun ? "" : `Snapshot: ${await snapshot(g)}\n`;
-  const { plan } = await applyRoles(g, a.roles, a.dryRun);
+  const { plan } = await withGuildLock(g, () => applyRoles(g, a.roles, a.dryRun));
   return `${head}${a.dryRun ? "[dry-run]" : "[applied]"}\n${plan.join("\n")}`;
 });
 

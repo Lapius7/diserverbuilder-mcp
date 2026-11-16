@@ -4,7 +4,7 @@ import { getRoles, guildOf, permNames, rest } from "../discord.ts";
 import { exportLayout, type Layout } from "../layout.ts";
 import { snapshot } from "../snapshot.ts";
 import { BUILTIN_TEMPLATES, applyTemplate, getTemplate, listSavedTemplates, saveTemplate, templateDir, type Template } from "../templates.ts";
-import { DESTRUCTIVE, EDIT, LOCAL, READ, WRITE, def, guildId } from "../tool.ts";
+import { DESTRUCTIVE, EDIT, LOCAL, READ, WRITE, def, guildId, withGuildLock } from "../tool.ts";
 
 const count = (l: Layout) => l.categories.length + l.categories.reduce((n, c) => n + (c.channels?.length ?? 0), 0) + (l.uncategorized?.length ?? 0);
 const summary = (t: Template, tag: string) => `${t.name} (${tag}): ${t.description} [${t.roles.length} roles, ${count(t.layout)} categories and channels]`;
@@ -63,7 +63,7 @@ def("apply_template", {
   const g = guildOf(a.guildId);
   const tpl = await getTemplate(a.name);
   const head = a.dryRun ? "" : `Snapshot: ${await snapshot(g)}\n`;
-  const plan = await applyTemplate(g, tpl, a.dryRun);
+  const plan = await withGuildLock(g, () => applyTemplate(g, tpl, a.dryRun));
   return `${head}${a.dryRun ? "[dry-run]" : "[applied]"} template ${tpl.name}\n${plan.join("\n")}`;
 });
 
@@ -97,7 +97,7 @@ def("get_guild_template", {
 def("create_guild_template", {
   description:
     "Create the DISCORD server template for this server from its current channels and roles (messages and members are not included). " +
-    "Discord is believed to allow one template per server (not confirmed in its docs) and may refuse a second: use sync_guild_template to refresh it. Needs Manage Server.",
+    "Discord allows only one template per server (a second create fails with code 30031): use sync_guild_template to refresh it. Needs the Administrator permission.",
   inputSchema: { guildId, name: z.string().min(1).max(100), description: z.string().max(120).optional() },
   annotations: WRITE,
 }, async (a) => show((await rest().post(Routes.guildTemplates(guildOf(a.guildId)), { body: { name: a.name, description: a.description } })) as GuildTemplate));

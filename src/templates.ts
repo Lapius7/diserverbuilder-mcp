@@ -81,7 +81,7 @@ export const BUILTIN_TEMPLATES: Record<string, Template> = {
     layout: {
       categories: [
         { name: "Welcome", channels: [readOnly("rules", "Server rules"), readOnly("announcements", "New posts and streams"), t("introductions", "Say hello")] },
-        { name: "Community", channels: [t("fan-chat", "Chat with other fans"), { name: "showcase", type: "media", topic: "Fan art and clips" }, t("off-topic", "Anything else")] },
+        { name: "Community", channels: [t("fan-chat", "Chat with other fans"), { name: "showcase", type: "forum", topic: "Fan art and clips", forumTags: ["art", "clip"] }, t("off-topic", "Anything else")] },
         { name: "Supporters", private: true, allowRoles: ["Supporter", "Moderator", "Admin"], channels: [t("supporter-lounge", "Thank you for supporting"), v("Supporter Voice")] },
         { name: "Staff", ...staffOnly, channels: [t("staff-chat", "Moderators only")] },
       ],
@@ -175,18 +175,15 @@ export async function getTemplate(name: string): Promise<Template> {
 export async function applyTemplate(g: string, tpl: Template, dryRun: boolean): Promise<string[]> {
   const errs = validateTemplate(tpl);
   if (errs.length) throw new Error(`Template "${tpl.name}" is not valid:\n${errs.join("\n")}`);
+  // Stage channels can only be created on a Community server (Discord docs).
   const needs = (["stage"] as const).filter((k) => allChannels(tpl.layout).some(({ owner }) => (owner as { type?: string }).type === k));
-  const soft = (["forum", "media"] as const).filter((k) => allChannels(tpl.layout).some(({ owner }) => (owner as { type?: string }).type === k));
   const notes: string[] = [];
-  if (needs.length || soft.length) {
+  if (needs.length) {
     const guild = (await rest().get(Routes.guild(g))) as { features?: string[] };
     if (!(guild.features ?? []).includes("COMMUNITY")) {
-      if (needs.length) {
-        const msg = `! Stage channels need a Community server, and this server is not one yet. Run enable_community first (it is a dry run by default).`;
-        if (!dryRun) throw new Error(`Nothing was changed.\n${msg}`);
-        notes.push(msg);
-      }
-      if (soft.length) notes.push(`! ${soft.join(" and ")} channels may also need a Community server (enable_community).`);
+      const msg = `! ${needs.join(" and ")} channels need a Community server, and this server is not one yet. Run enable_community first (it is a dry run by default).`;
+      if (!dryRun) throw new Error(`Nothing was changed.\n${msg}`);
+      notes.push(msg);
     }
   }
   const { plan: rolePlan, planned } = await applyRoles(g, tpl.roles, dryRun);
