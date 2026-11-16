@@ -150,7 +150,7 @@ export async function listSavedTemplates(): Promise<Template[]> {
   let files: string[] = [];
   try { files = (await readdir(templateDir())).filter((f) => f.endsWith(".json")); } catch { return []; }
   const out: Template[] = [];
-  for (const f of files.sort()) {
+  for (const f of files.sort((a, b) => a.localeCompare(b))) {
     try { out.push(JSON.parse(await readFile(join(templateDir(), f), "utf8")) as Template); } catch { /* skip unreadable file */ }
   }
   return out;

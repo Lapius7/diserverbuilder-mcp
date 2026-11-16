@@ -1,7 +1,7 @@
 import { Routes } from "discord.js";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import { getAllMembers, getChannels, getRoles, rest, type Ch, type Role } from "./discord.ts";
 
 type Obj = Record<string, unknown>;
@@ -71,6 +71,7 @@ export async function collectSnapshot(g: string, opts: { includeMembers?: boolea
 }
 
 export async function saveSnapshot(g: string, opts: { includeMembers?: boolean } = {}): Promise<{ file: string; data: SnapshotData }> {
+  if (!/^\d{5,25}$/.test(g)) throw new Error(`Not a server ID: ${g}`);
   const data = await collectSnapshot(g, opts);
   const dir = snapshotDir();
   await mkdir(dir, { recursive: true });
@@ -84,7 +85,7 @@ export const snapshot = async (g: string, opts: { includeMembers?: boolean } = {
 
 export async function listSnapshots(): Promise<string[]> {
   try {
-    return (await readdir(snapshotDir())).filter((f) => f.endsWith(".json")).sort();
+    return (await readdir(snapshotDir())).filter((f) => f.endsWith(".json")).sort((a, b) => a.localeCompare(b));
   } catch {
     return [];
   }
@@ -92,6 +93,7 @@ export async function listSnapshots(): Promise<string[]> {
 
 /** Read a snapshot file. Files from before version 2 (only guild, channels, roles) still load. */
 export async function readSnapshot(file: string): Promise<SnapshotData> {
+  if (!isAbsolute(file) && basename(file) !== file) throw new Error(`Pass a file name from list_snapshots or an absolute path: ${file}`);
   const path = isAbsolute(file) ? file : join(snapshotDir(), file);
   const data = JSON.parse(await readFile(path, "utf8")) as Partial<SnapshotData>;
   if (!data.guild || !Array.isArray(data.channels) || !Array.isArray(data.roles)) {
@@ -121,7 +123,7 @@ function diffList(label: string, a: Obj[] | undefined, b: Obj[] | undefined, fie
 /** Describe what changed from `before` to `after`. Parts missing from either side are skipped. */
 export function diffSnapshots(before: SnapshotData, after: SnapshotData): string[] {
   const out: string[] = [];
-  const ovKey = (c: Ch) => (c.permission_overwrites ?? []).map((o) => `${o.type}:${o.id}:${o.allow}:${o.deny}`).sort();
+  const ovKey = (c: Ch) => (c.permission_overwrites ?? []).map((o) => `${o.type}:${o.id}:${o.allow}:${o.deny}`).sort((a, b) => a.localeCompare(b));
   const prep = (s: SnapshotData) => s.channels.map((c) => ({ ...c, overwrites: ovKey(c) } as unknown as Obj));
   diffList("role", before.roles as unknown as Obj[], after.roles as unknown as Obj[],
     ["name", "color", "permissions", "hoist", "mentionable", "position", "icon", "unicode_emoji"], out);
@@ -139,7 +141,7 @@ export function diffSnapshots(before: SnapshotData, after: SnapshotData): string
   if (before.memberRoles && after.memberRoles) {
     let changed = 0;
     for (const id of new Set([...Object.keys(before.memberRoles), ...Object.keys(after.memberRoles)])) {
-      if (!same([...(before.memberRoles[id] ?? [])].sort(), [...(after.memberRoles[id] ?? [])].sort())) changed++;
+      if (!same([...(before.memberRoles[id] ?? [])].sort((a, b) => a.localeCompare(b)), [...(after.memberRoles[id] ?? [])].sort((a, b) => a.localeCompare(b)))) changed++;
     }
     if (changed) out.push(`~ roles of ${changed} member(s) changed`);
   }

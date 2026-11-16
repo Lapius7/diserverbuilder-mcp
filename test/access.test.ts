@@ -42,7 +42,7 @@ describe("computePermissions", () => {
   });
   test("timeout keeps only view and history", () => {
     const p = computePermissions({ ...base, roleIds: [mod.id], timedOut: true, channel: text() });
-    expect(p).toBe(P.ViewChannel | P.ReadMessageHistory);
+    expect(String(p)).toBe(String(P.ViewChannel | P.ReadMessageHistory));
   });
   test("a role-only check ignores member overwrites", () => {
     const c = text([ow("400000000000000001", 1, 0n, P.ViewChannel)]);
