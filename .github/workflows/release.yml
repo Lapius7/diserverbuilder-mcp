@@ -1,0 +1,31 @@
+# v* タグの push で npm に公開する
+#   git tag v0.5.0 && git push origin v0.5.0
+# npm 側の Trusted Publisher（OIDC）で認証する。トークンは不要。
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: oven-sh/setup-bun@v2 # build は bun build を使う
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: npm install -g npm@latest # OIDC での公開には npm 11.5.1 以降が必要
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck && pnpm build
+      - run: npm publish --access public
