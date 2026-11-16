@@ -1,7 +1,7 @@
 import { Routes } from "discord.js";
 import { z } from "zod";
 import { guildOf, rest, snowflakeTime, type Ch } from "../discord.ts";
-import { EDIT, READ, WRITE, def, guildId } from "../tool.ts";
+import { EDIT, READ, WRITE, def, explain, guildId } from "../tool.ts";
 
 const FLAG_PINNED = 1 << 1;
 const FLAG_REQUIRE_TAG = 1 << 4;
@@ -55,7 +55,11 @@ def("create_forum_post", {
       message: { content: a.content, allowed_mentions: { parse: [] } },
     },
   })) as Thread;
-  if (a.pin) await rest().patch(Routes.channel(t.id), { body: { flags: (t.flags ?? 0) | FLAG_PINNED } });
+  if (a.pin) {
+    // The post already exists, so a failed pin is reported as a warning, not as a failed call.
+    try { await rest().patch(Routes.channel(t.id), { body: { flags: (t.flags ?? 0) | FLAG_PINNED } }); }
+    catch (e) { return `Created: ${t.name} ${t.id}\nWarning: the post was created but could not be pinned. ${explain(e)}`; }
+  }
   return `Created: ${t.name} ${t.id}`;
 });
 
