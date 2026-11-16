@@ -1,7 +1,8 @@
 import { Routes } from "discord.js";
 import { z } from "zod";
 import { getRoles, guildOf, permBits, permNames, rest, type Role } from "../discord.ts";
-import { snapshot } from "../discord.ts";
+import { applyRoles, roleBody } from "../roles.ts";
+import { snapshot } from "../snapshot.ts";
 import { DESTRUCTIVE, EDIT, READ, WRITE, def, guildId } from "../tool.ts";
 
 const roleFields = {
@@ -10,10 +11,6 @@ const roleFields = {
   hoist: z.boolean().optional().describe("Show members separately in the member list"),
   mentionable: z.boolean().optional(),
 };
-const roleBody = (a: { color?: number; permissions?: string[]; hoist?: boolean; mentionable?: boolean }) => ({
-  color: a.color, permissions: a.permissions ? permBits(a.permissions) : undefined, hoist: a.hoist, mentionable: a.mentionable,
-});
-
 def("list_roles", {
   description: "List roles (ID and name), highest first. showPermissions adds each role's permission names.",
   inputSchema: { guildId, showPermissions: z.boolean().default(false) },
@@ -76,24 +73,7 @@ def("apply_roles", {
 }, async (a) => {
   const g = guildOf(a.guildId);
   const head = a.dryRun ? "" : `Snapshot: ${await snapshot(g)}\n`;
-  const current = await getRoles(g);
-  const plan: string[] = [];
-  for (const want of a.roles) {
-    const ex = current.find((r) => !r.managed && r.id !== g && r.name.toLowerCase() === want.name.toLowerCase());
-    if (!ex) {
-      plan.push(`+ create: ${want.name}`);
-      if (!a.dryRun) await rest().post(Routes.guildRoles(g), { body: { name: want.name, ...roleBody(want) } });
-      continue;
-    }
-    const patch: Record<string, unknown> = {};
-    if (want.color !== undefined && want.color !== ex.color) patch.color = want.color;
-    if (want.permissions && permBits(want.permissions) !== ex.permissions) patch.permissions = permBits(want.permissions);
-    if (want.hoist !== undefined && want.hoist !== !!ex.hoist) patch.hoist = want.hoist;
-    if (want.mentionable !== undefined && want.mentionable !== !!ex.mentionable) patch.mentionable = want.mentionable;
-    if (!Object.keys(patch).length) { plan.push(`= unchanged: ${ex.name}`); continue; }
-    plan.push(`~ update: ${ex.name} ${Object.keys(patch).join(", ")}`);
-    if (!a.dryRun) await rest().patch(Routes.guildRole(g, ex.id), { body: patch });
-  }
+  const { plan } = await applyRoles(g, a.roles, a.dryRun);
   return `${head}${a.dryRun ? "[dry-run]" : "[applied]"}\n${plan.join("\n")}`;
 });
 

@@ -1,8 +1,7 @@
 import { AuditLogEvent, Routes } from "discord.js";
-import { readFile } from "node:fs/promises";
-import { extname } from "node:path";
 import { z } from "zod";
 import { guildOf, rest, snowflakeTime } from "../discord.ts";
+import { toDataUri } from "../image.ts";
 import { DESTRUCTIVE, EDIT, READ, WRITE, def, guildId } from "../tool.ts";
 
 type Obj = Record<string, unknown>;
@@ -54,25 +53,6 @@ def("edit_guild", {
 });
 
 // ---------- Emojis ----------
-
-const MIME: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
-
-/** Read an image from a URL or local path as a data URI. */
-async function toDataUri(src: string): Promise<string> {
-  if (src.startsWith("data:")) return src;
-  let bytes: Buffer, mime: string | undefined;
-  if (/^https?:\/\//.test(src)) {
-    const r = await fetch(src);
-    if (!r.ok) throw new Error(`Could not download the image (${r.status})`);
-    bytes = Buffer.from(await r.arrayBuffer());
-    mime = r.headers.get("content-type")?.split(";")[0] ?? MIME[extname(new URL(src).pathname).toLowerCase()];
-  } else {
-    bytes = await readFile(src);
-    mime = MIME[extname(src).toLowerCase()];
-  }
-  if (!mime?.startsWith("image/")) throw new Error("Unsupported image type (use png, jpg, gif or webp)");
-  return `data:${mime};base64,${bytes.toString("base64")}`;
-}
 
 def("list_emojis", {
   description: "List custom emojis (ID, name, animated).",
@@ -150,6 +130,36 @@ def("create_webhook", {
 }, async (a) => {
   const w = (await rest().post(Routes.channelWebhooks(a.channelId), { body: { name: a.name } })) as { id: string; token: string };
   return `Created: ${w.id}\nhttps://discord.com/api/webhooks/${w.id}/${w.token}`;
+});
+
+def("execute_webhook", {
+  description:
+    "Post a message through a webhook (a different name and avatar than the bot). Pass the webhook ID (see list_webhooks): the secret token is fetched here and never shown. " +
+    "Only works for webhooks whose token the bot can read (ones it or its server created). threadId posts into a thread. Mentions do not notify unless allowMentions=true.",
+  inputSchema: {
+    webhookId: z.string(), content: z.string().max(2000).optional(), username: z.string().max(80).optional(),
+    avatarUrl: z.string().url().optional(), threadId: z.string().optional(),
+    embeds: z.array(z.object({
+      title: z.string().max(256).optional(), description: z.string().max(4096).optional(), url: z.string().optional(),
+      color: z.number().int().optional().describe("0xRRGGBB"),
+    })).max(10).optional(),
+    allowMentions: z.boolean().default(false),
+  },
+  annotations: WRITE,
+}, async (a) => {
+  if (!a.content && !a.embeds?.length) throw new Error("Pass content or embeds.");
+  const w = (await rest().get(Routes.webhook(a.webhookId))) as { id: string; token?: string };
+  if (!w.token) throw new Error("Discord did not give this bot the webhook's token (the webhook belongs to another application). Create one with create_webhook instead.");
+  const query = new URLSearchParams({ wait: "true" });
+  if (a.threadId) query.set("thread_id", a.threadId);
+  const m = (await rest().post(Routes.webhook(w.id, w.token), {
+    auth: false, query,
+    body: {
+      content: a.content, username: a.username, avatar_url: a.avatarUrl, embeds: a.embeds,
+      allowed_mentions: a.allowMentions ? undefined : { parse: [] },
+    },
+  })) as { id: string };
+  return `Sent: ${m.id}`;
 });
 
 def("delete_webhook", {

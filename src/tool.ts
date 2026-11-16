@@ -2,14 +2,19 @@ import { DiscordAPIError } from "discord.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import pkg from "../package.json" with { type: "json" };
+import { GROUP_OF, enabledGroups } from "./groups.ts";
 
 export const server = new McpServer({ name: "diserverbuilder", version: pkg.version });
 
 /** DISERVERBUILDER_READONLY=1 registers only tools that cannot change anything on Discord. */
 export const READONLY = /^(1|true|yes)$/i.test(process.env.DISERVERBUILDER_READONLY ?? "");
 
+const GROUPS_ON = enabledGroups();
+/** Names of every tool a module asked to register (before read-only and group filtering). Used by tests. */
+export const registered: string[] = [];
+
 export const guildId = z.string().optional().describe("Server (guild) ID. Defaults to DISCORD_GUILD_ID if omitted.");
-export const kindEnum = z.enum(["text", "voice", "announcement", "stage", "forum"]);
+export const kindEnum = z.enum(["text", "voice", "announcement", "stage", "forum", "media"]);
 export const overwriteSpec = z.object({
   role: z.string().describe('Role name, or "@everyone"'),
   allow: z.array(z.string()).optional(),
@@ -38,7 +43,8 @@ function fieldErrors(node: unknown, path = ""): string[] {
 /** Turn an error into a short message that says what went wrong and what to do about it. */
 export function explain(e: unknown): string {
   if (e instanceof DiscordAPIError) {
-    const where = `${e.method} ${new URL(e.url).pathname.replace(/^\/api\/v\d+/, "")}`;
+    // Webhook URLs carry a secret token in the path: never print it.
+    const where = `${e.method} ${new URL(e.url).pathname.replace(/^\/api\/v\d+/, "").replace(/^(\/webhooks\/\d+)\/[^/]+/, "$1/<token>")}`;
     const hint: string =
       e.status === 401 ? "The bot token is invalid or was reset. Run `npx diserverbuilder-mcp auth` to save a new one (Developer Portal, Bot, Reset Token), or fix DISCORD_BOT_TOKEN if you set it."
       : e.code === 50001 ? "The bot cannot see this. Check that it was invited to the server and can view the channel."
@@ -69,14 +75,16 @@ interface Config<S extends z.ZodRawShape> {
   annotations: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
 }
 
-/** Register a tool. Errors become MCP error results; in read-only mode, tools that change Discord are skipped. */
+/** Register a tool. Errors become MCP error results; in read-only mode, tools that change Discord are skipped, and so are tools outside DISERVERBUILDER_TOOLS. */
 export function def<S extends z.ZodRawShape>(
   name: string,
   cfg: Config<S>,
   fn: (a: z.infer<z.ZodObject<S>>) => Promise<string>,
 ) {
+  registered.push(name);
   const changesDiscord = cfg.annotations.openWorldHint && !cfg.annotations.readOnlyHint;
   if (READONLY && changesDiscord) return;
+  if (GROUPS_ON && !GROUPS_ON.has(GROUP_OF[name] ?? "")) return;
   server.registerTool(name, cfg as never, (async (a: z.infer<z.ZodObject<S>>) => {
     try { return ok(await fn(a)); } catch (e) { return fail(e); }
   }) as never);
