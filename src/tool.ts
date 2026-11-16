@@ -47,7 +47,7 @@ export function explain(e: unknown): string {
     const where = `${e.method} ${new URL(e.url).pathname.replace(/^\/api\/v\d+/, "").replace(/^(\/webhooks\/\d+)\/[^/]+/, "$1/<token>")}`;
     const hint: string =
       e.status === 401 ? "The bot token is invalid or was reset. Run `npx diserverbuilder-mcp auth` to save a new one (Developer Portal, Bot, Reset Token), or fix DISCORD_BOT_TOKEN if you set it."
-      : e.code === 50001 ? "The bot cannot see this. Check that it was invited to the server and can view the channel."
+      : e.code === 50001 ? "Discord says the bot has no access. Check that it was invited to the server and can view the channel. Some actions (Discord templates, turning Community on or off) need the Administrator permission."
       : e.code === 50013 || e.status === 403
         ? "The bot lacks a permission for this. Grant it, and move the bot's role above any role it edits (Discord does not let a bot edit roles above its own)."
       : e.code === 50035 ? "Discord rejected a value:\n" + (fieldErrors((e.rawError as { errors?: unknown }).errors).map((l) => `  ${l}`).join("\n") || `  ${e.message}`)
@@ -65,6 +65,19 @@ export function explain(e: unknown): string {
     return e.message;
   }
   return String(e);
+}
+
+const queues = new Map<string, Promise<unknown>>();
+/**
+ * Run changes to one server one after another. A client that times out and retries would otherwise start a second run while the first
+ * is still going, and both create the same missing channels (seen on a live server: three copies of one category).
+ */
+export function withGuildLock<T>(g: string, fn: () => Promise<T>): Promise<T> {
+  const run = (queues.get(g) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => undefined);
+  queues.set(g, tail);
+  void tail.then(() => { if (queues.get(g) === tail) queues.delete(g); });
+  return run;
 }
 
 const fail = (e: unknown) => ({ isError: true, content: [{ type: "text" as const, text: explain(e) }] });

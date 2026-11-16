@@ -1,7 +1,8 @@
-import { Routes } from "discord.js";
+import { PermissionFlagsBits, Routes } from "discord.js";
 import { z } from "zod";
 import { planDisableCommunity, planEnableCommunity, type GuildCfg } from "../community.ts";
 import { getChannels, getRoles, guildOf, resolveRole, rest } from "../discord.ts";
+import { botPermissions } from "../roles.ts";
 import { DESTRUCTIVE, EDIT, READ, def, guildId } from "../tool.ts";
 
 type Obj = Record<string, unknown>;
@@ -107,7 +108,7 @@ def("enable_community", {
     "Turn the Community features on (needed for onboarding, the welcome screen and server discovery). " +
     "Discord requires a rules channel and a public updates channel (text channels), verification level at least 1 (low) and the explicit content filter set to scan all members; " +
     "this tool sets what is missing, so verification and the content filter can become stricter. Pass the channel IDs if the server has none set. " +
-    "Defaults to dryRun, which lists what would change. Keeps every feature the server already has. Needs Administrator. Not tested against a live server: check the dry run first.",
+    "Defaults to dryRun, which lists what would change. Keeps every feature the server already has. Needs Administrator: the bot must hold it (a server owner can grant it to the bot role), and a real run is refused without it.",
   inputSchema: {
     guildId,
     rulesChannelId: z.string().optional().describe("Text channel for rules. Defaults to the server's current one."),
@@ -120,6 +121,10 @@ def("enable_community", {
   const guild = (await rest().get(Routes.guild(g))) as GuildCfg;
   if (guild.features?.includes("COMMUNITY")) return "Already a Community server. Nothing to change.";
   const plan = planEnableCommunity(guild, await getChannels(g), { rulesChannelId: a.rulesChannelId, publicUpdatesChannelId: a.publicUpdatesChannelId });
+  const mine = await botPermissions(g, await getRoles(g));
+  if (mine !== undefined && !(mine & PermissionFlagsBits.Administrator)) {
+    plan.problems.push("the bot does not have Administrator, which Discord requires to turn Community on: give the bot's role Administrator (only the server owner can), then try again");
+  }
   if (plan.problems.length) return `Cannot enable Community yet:\n${plan.problems.map((p) => `! ${p}`).join("\n")}`;
   if (!a.dryRun) await rest().patch(Routes.guild(g), { body: plan.body });
   return `${a.dryRun ? "[dry-run]" : "[applied]"}\n${plan.changes.map((c) => `~ ${c}`).join("\n")}`;

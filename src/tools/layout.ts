@@ -2,7 +2,7 @@ import { z } from "zod";
 import { guildOf } from "../discord.ts";
 import { applyLayout, exportLayout, restoreSnapshot } from "../layout.ts";
 import { diffSnapshots, listSnapshots, readSnapshot, collectSnapshot, saveSnapshot, snapshot, snapshotDir } from "../snapshot.ts";
-import { DESTRUCTIVE, LOCAL, READ, WRITE, def, guildId, kindEnum, overwriteSpec } from "../tool.ts";
+import { DESTRUCTIVE, LOCAL, READ, WRITE, def, guildId, kindEnum, overwriteSpec, withGuildLock } from "../tool.ts";
 
 const placed = {
   private: z.boolean().optional().describe("Deny @everyone from viewing"),
@@ -72,7 +72,7 @@ def("restore_snapshot", {
 }, async (a) => {
   const snap = await readSnapshot(a.file);
   const g = a.guildId || process.env.DISCORD_GUILD_ID || snap.guild;
-  const plan = await restoreSnapshot(g, snap, { dryRun: a.dryRun, include: a.include });
+  const plan = await withGuildLock(g, () => restoreSnapshot(g, snap, { dryRun: a.dryRun, include: a.include }));
   return `${a.dryRun ? "[dry-run]" : "[applied]"} snapshot of ${snap.guild} -> ${g}\n${plan.join("\n")}`;
 });
 
@@ -105,6 +105,6 @@ def("apply_layout", {
 }, async (a) => {
   const g = guildOf(a.guildId);
   const head = a.dryRun ? "" : `Snapshot: ${await snapshot(g)}\n`;
-  const plan = await applyLayout(g, { categories: a.categories, uncategorized: a.uncategorized }, { dryRun: a.dryRun, prune: a.prune, syncPermissions: a.syncPermissions });
+  const plan = await withGuildLock(g, () => applyLayout(g, { categories: a.categories, uncategorized: a.uncategorized }, { dryRun: a.dryRun, prune: a.prune, syncPermissions: a.syncPermissions }));
   return `${head}${a.dryRun ? "[dry-run]" : "[applied]"}\n${plan.join("\n")}`;
 });
