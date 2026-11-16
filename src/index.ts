@@ -11,5 +11,6 @@ if (process.argv[2] === "auth") {
   await import("./tools/roles.ts");
   await import("./tools/layout.ts");
   await import("./tools/messages.ts");
+  await import("./tools/threads.ts");
   await server.connect(new StdioServerTransport());
 }

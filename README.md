@@ -6,7 +6,7 @@ An MCP server that lets an AI assistant (Claude, etc.) build and reorganize a Di
 
 It talks to the Discord REST API only. It does not log in to the gateway, so it needs no privileged intents and the bot does not have to stay online.
 
-## Tools (46)
+## Tools (51)
 
 | Area | Tools |
 |------|-------|
@@ -17,6 +17,7 @@ It talks to the Discord REST API only. It does not log in to the gateway, so it 
 | Bulk and backup | `apply_layout` (declare the whole structure), `snapshot`, `list_snapshots`, `restore_snapshot` (also copies a structure to another server) |
 | Server | `edit_guild`, `list_emojis`, `create_emoji`, `delete_emoji`, `list_invites`, `create_invite`, `delete_invite`, `list_webhooks`, `create_webhook`, `delete_webhook`, `list_events`, `create_event`, `delete_event`, `get_audit_log` |
 | Messages | `send_message` (text and embeds, optional pin), `edit_message`, `delete_message`, `pin_message`, `get_messages` |
+| Threads and forums | `create_forum_post`, `create_thread`, `list_threads`, `edit_thread`, `set_forum_options` (tags are set with `edit_channel`) |
 
 ## Setup
 
@@ -32,10 +33,10 @@ Structure only (View Channels, Manage Channels, Manage Roles):
 https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=268436496
 ```
 
-All tools (adds Manage Server, Manage Webhooks, Manage Events, Manage and Create Expressions, Create Invite, View Audit Log, Send Messages, Embed Links, Read Message History, Manage Messages, Pin Messages):
+All tools (adds Manage Server, Manage Webhooks, Manage Events, Manage and Create Expressions, Create Invite, View Audit Log, Send Messages, Embed Links, Read Message History, Manage Messages, Pin Messages, Create Public Threads, Send Messages in Threads, Manage Threads):
 
 ```
-https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=2260606375783601
+https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=2260932793298097
 ```
 
 A tool fails with a clear error if the bot lacks the permission it needs, so you can start with the smaller set.

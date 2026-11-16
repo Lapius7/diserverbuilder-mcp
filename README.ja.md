@@ -6,7 +6,7 @@
 
 Discord の REST API だけを使います。ゲートウェイにはログインしないので、特権インテントは要らず、Bot をオンラインにしておく必要もありません。
 
-## ツール（46 個）
+## ツール（51 個）
 
 | 分野 | ツール |
 |------|--------|
@@ -17,6 +17,7 @@ Discord の REST API だけを使います。ゲートウェイにはログイ�
 | 一括反映とバックアップ | `apply_layout`（構成全体を宣言）、`snapshot`、`list_snapshots`、`restore_snapshot`（別サーバーへの構成コピーにも使える） |
 | サーバー | `edit_guild`、`list_emojis`、`create_emoji`、`delete_emoji`、`list_invites`、`create_invite`、`delete_invite`、`list_webhooks`、`create_webhook`、`delete_webhook`、`list_events`、`create_event`、`delete_event`、`get_audit_log` |
 | メッセージ | `send_message`（本文と埋め込み、ピン留め）、`edit_message`、`delete_message`、`pin_message`、`get_messages` |
+| スレッドとフォーラム | `create_forum_post`、`create_thread`、`list_threads`、`edit_thread`、`set_forum_options`（タグは `edit_channel` で設定） |
 
 ## セットアップ
 
@@ -32,10 +33,10 @@ Discord の REST API だけを使います。ゲートウェイにはログイ�
 https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=268436496
 ```
 
-すべてのツール（上に加えて、サーバー管理、Webhook の管理、イベントの管理、絵文字の作成と管理、招待の作成、監査ログの表示、メッセージの送信、埋め込みリンク、メッセージ履歴の閲覧、メッセージの管理、ピン留め）:
+すべてのツール（上に加えて、サーバー管理、Webhook の管理、イベントの管理、絵文字の作成と管理、招待の作成、監査ログの表示、メッセージの送信、埋め込みリンク、メッセージ履歴の閲覧、メッセージの管理、ピン留め、公開スレッドの作成、スレッドでのメッセージ送信、スレッドの管理）:
 
 ```
-https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=2260606375783601
+https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=2260932793298097
 ```
 
 権限が足りないツールは、その旨のエラーを返して失敗するだけなので、まず小さいほうから始められます。
