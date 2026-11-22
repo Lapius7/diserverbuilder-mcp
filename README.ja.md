@@ -1,12 +1,39 @@
-# diserverbuilder-mcp
+<div align="center">
 
-[English](README.md)
+<p align="center">
+  <img src="docs/images/banner.png" alt="Discord Server Builder MCP" width="100%">
+</p>
 
-自分の Discord Bot を通して、AI アシスタント（Claude など）に Discord サーバーの構成を組ませる MCP サーバーです。カテゴリ、チャンネル、ロール、権限の上書きを扱えます。
+<p align="center"><a href="README.md">English</a> | <b>日本語</b></p>
 
-Discord の REST API だけを使います。ゲートウェイにはログインしないので、特権インテントは要らず、Bot をオンラインにしておく必要もありません。
+<h1 align="center">Discord Server Builder MCP</h1>
+
+<h3 align="center">AI に、自分の Bot 経由で Discord サーバーの構成を組ませる。</h3>
+
+<p align="center">AI アシスタント（Claude など）に、Discord サーバーのカテゴリ・チャンネル・ロール・権限を扱わせる MCP サーバーです。Discord の REST API だけを使うため、特権インテントは要らず、Bot をオンラインにしておく必要もありません。</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/diserverbuilder-mcp"><img alt="npm" src="https://img.shields.io/npm/v/diserverbuilder-mcp?style=flat-square&color=cb3837&logo=npm"></a>
+  <a href="https://github.com/Lapius7/diserverbuilder-mcp/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Lapius7/diserverbuilder-mcp?label=release&style=flat-square&color=e8833a&logo=github"></a>
+  <a href="https://github.com/Lapius7/diserverbuilder-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Lapius7/diserverbuilder-mcp/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/Lapius7/diserverbuilder-mcp?style=flat-square&color=97ca00"></a>
+  <a href="https://modelcontextprotocol.io"><img alt="MCP" src="https://img.shields.io/badge/protocol-MCP-7c3aed?logo=modelcontextprotocol&logoColor=white&style=flat-square"></a>
+  <a href="https://discord.com/developers/docs"><img alt="Discord" src="https://img.shields.io/badge/Discord-bot-5865f2?logo=discord&logoColor=white&style=flat-square"></a>
+  <a href="https://github.com/Lapius7/diserverbuilder-mcp/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Lapius7/diserverbuilder-mcp?style=flat-square&color=e3b341&logo=github"></a>
+</p>
+
+<p align="center">
+  <a href="#セットアップ">セットアップ</a> · <a href="#ツール95-個">ツール</a> · <a href="#環境変数">環境変数</a> · <a href="#安全のために">安全のために</a>
+</p>
+
+</div>
+
+---
 
 ## ツール（95 個）
+
+<details>
+<summary>全ツール</summary>
 
 | 分野 | ツール |
 |------|--------|
@@ -28,6 +55,8 @@ Discord の REST API だけを使います。ゲートウェイにはログイ�
 | アクティビティ | `inactive_channels`、`activity_report` |
 | ステージ | `get_stage`、`start_stage`、`edit_stage`、`end_stage` |
 | スレッドとフォーラム | `create_forum_post`、`create_thread`、`list_threads`、`edit_thread`、`set_forum_options`（タグは `edit_channel` で設定する） |
+
+</details>
 
 ボタンはリンクボタンだけです。ゲートウェイに接続しないため、ほかの種類のボタンは押されても受け取れません。
 
