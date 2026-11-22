@@ -1,12 +1,39 @@
-# diserverbuilder-mcp
+<div align="center">
 
-[日本語](README.ja.md)
+<p align="center">
+  <img src="docs/images/banner.png" alt="Discord Server Builder MCP" width="100%">
+</p>
 
-An MCP server that lets an AI assistant (Claude, etc.) build and reorganize a Discord server through a bot you own: categories, channels, roles, and permission overwrites.
+<p align="center"><b>English</b> | <a href="README.ja.md">日本語</a></p>
 
-It talks to the Discord REST API only. It does not log in to the gateway, so it needs no privileged intents and the bot does not have to stay online.
+<h1 align="center">Discord Server Builder MCP</h1>
+
+<h3 align="center">Let your AI build and reorganize a Discord server through a bot you own.</h3>
+
+<p align="center">An MCP server that lets AI assistants (Claude and others) manage categories, channels, roles and permissions of a Discord server. It uses the Discord REST API only, so no privileged intents are needed and the bot does not have to stay online.</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/diserverbuilder-mcp"><img alt="npm" src="https://img.shields.io/npm/v/diserverbuilder-mcp?style=flat-square&color=cb3837&logo=npm"></a>
+  <a href="https://github.com/Lapius7/diserverbuilder-mcp/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Lapius7/diserverbuilder-mcp?label=release&style=flat-square&color=e8833a&logo=github"></a>
+  <a href="https://github.com/Lapius7/diserverbuilder-mcp/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Lapius7/diserverbuilder-mcp/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/Lapius7/diserverbuilder-mcp?style=flat-square&color=97ca00"></a>
+  <a href="https://modelcontextprotocol.io"><img alt="MCP" src="https://img.shields.io/badge/protocol-MCP-7c3aed?logo=modelcontextprotocol&logoColor=white&style=flat-square"></a>
+  <a href="https://discord.com/developers/docs"><img alt="Discord" src="https://img.shields.io/badge/Discord-bot-5865f2?logo=discord&logoColor=white&style=flat-square"></a>
+  <a href="https://github.com/Lapius7/diserverbuilder-mcp/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Lapius7/diserverbuilder-mcp?style=flat-square&color=e3b341&logo=github"></a>
+</p>
+
+<p align="center">
+  <a href="#setup">Setup</a> · <a href="#tools-95">Tools</a> · <a href="#environment-variables">Environment variables</a> · <a href="#safety">Safety</a>
+</p>
+
+</div>
+
+---
 
 ## Tools (95)
+
+<details>
+<summary>All tools</summary>
 
 | Area | Tools |
 |------|-------|
@@ -28,6 +55,8 @@ It talks to the Discord REST API only. It does not log in to the gateway, so it 
 | Activity | `inactive_channels`, `activity_report` |
 | Stages | `get_stage`, `start_stage`, `edit_stage`, `end_stage` |
 | Threads and forums | `create_forum_post`, `create_thread`, `list_threads`, `edit_thread`, `set_forum_options` (tags are set with `edit_channel`) |
+
+</details>
 
 Buttons are limited to link buttons. The server has no gateway connection, so nothing could receive a click on any other kind.
 
